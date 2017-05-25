@@ -7,7 +7,7 @@
  */
  
 /*
-  Подключение матричного модуля
+  Подключение матричного модуля к SPI
   VCC - 5v
   GND - GND
   DIN - 11pin
@@ -35,12 +35,13 @@ const int buttonPin4 = 2; // Кнопка "D"
 
 // Пищалка
 const int buzzPin = 6; // Пин к которому подключена пищалка
-conct int buzzHz = 1000; // Частота пищалки в Hz
+const int buzzHz = 1000; // Частота пищалки в Hz
 
 int clicks = 0;
 int currentBtn = 0;
 unsigned long timeBtn = 0;
-boolean roll = false;
+boolean roll = true;
+boolean roll_loop = false;
 
 // Фразы на один и два клика
 String tapes[][2] = {
@@ -111,10 +112,13 @@ void setup() {
   Serial.begin(9600);
   matrix.setIntensity(15); // Яркость матричного модуля от 0 до 15
   matrix.setRotation(matrix.getRotation() + 1); // Поворот 1 - 90,  2 - 180, 3 - 270
+  tape = utf8rus("Поехали!"); // Текст при запуске
 }
 
 void loop() {
-  if (roll) {
+  int btn = 0;
+  boolean bloop = true;
+  if (roll || roll_loop) {
     if (Serial.available()) {
       tape = Serial_Read();
     }
@@ -123,7 +127,6 @@ void loop() {
       int letter = i / width; // номер символа выводимого на матрицу
       int x = (matrix.width() - 1) - i % width;
       int y = (matrix.height() - 8) / 2; // Центр текста по вертикали
-
       while ( x + width - spacer >= 0 && letter >= 0 ) {
         if ( letter < tape.length() ) {
           matrix.drawChar(x, y, tape[letter], HIGH, LOW, 1);
@@ -132,27 +135,27 @@ void loop() {
         x -= width;
       }
       matrix.write(); // Посылаем изображение на матрицу
+
+      // Проверяем нажата ли любая кнопка, если да то циклим строку
+      btn = statusBtn();
+      if (btn != 0 && bloop) {
+        tone(buzzPin, buzzHz, 100);
+        roll_loop = !roll_loop;
+        bloop = false;
+      }
+      
       delay(wait);
     }
-    tone(buzzPin, buzzHz, 200);
+    if (!roll_loop) {
+      tone(buzzPin, buzzHz, 200);
+    } else {
+      tone(buzzPin, buzzHz, 5);
+    }
     roll = false;
   }
-
-  int btn1 = digitalRead(buttonPin1);
-  int btn2 = digitalRead(buttonPin2);
-  int btn3 = digitalRead(buttonPin3);
-  int btn4 = digitalRead(buttonPin4);
-  if (btn1 == HIGH) {
-    pressBtn(1);
-  }
-  if (btn2 == HIGH) {
-    pressBtn(2);
-  }
-  if (btn3 == HIGH) {
-    pressBtn(3);
-  }
-  if (btn4 == HIGH) {
-    pressBtn(4);
+  btn = statusBtn();
+  if (btn != 0) {
+    pressBtn(btn);
   }
   if (timeBtn != 0 && millis() - timeBtn > 500) {
     sendCommand(currentBtn, clicks);
@@ -160,6 +163,22 @@ void loop() {
     clicks = 0;
     currentBtn = 0;
   }
+}
+
+int statusBtn() {
+  if (digitalRead(buttonPin1) == HIGH) {
+    return 1;
+  }
+  if (digitalRead(buttonPin2) == HIGH) {
+    return 2;
+  }
+  if (digitalRead(buttonPin3) == HIGH) {
+    return 3;
+  }
+  if (digitalRead(buttonPin4) == HIGH) {
+    return 4;
+  }
+  return 0;
 }
 
 void pressBtn(int btn) {
