@@ -3,9 +3,9 @@
 #include <Max72xxPanel.h>
 
 /*
- * Настройки матричного модуля
- */
- 
+   Настройки матричного модуля
+*/
+
 /*
   Подключение матричного модуля к SPI
   VCC - 5v
@@ -24,8 +24,8 @@ int spacer = 1; // Промежуток между символами (кол-в
 int width = 5 + spacer; // Ширина шрифта
 
 /*
- * Настройки радиомодуля
- */
+   Настройки радиомодуля
+*/
 
 // Пины к которым подключены выводы радиомодуля
 const int buttonPin1 = 5; // Кнопка "A"
@@ -43,12 +43,12 @@ unsigned long timeBtn = 0;
 boolean roll = true;
 boolean roll_loop = false;
 
-// Фразы на один и два клика
-String tapes[][2] = {
-  {"Спасибо!", "Объезжай"},
-  {"Хорошо стоим", "Не дуди"},
-  {"Не жмись", "Эх, дороги..."},
-  {"Понять и простить", "Сорян, спешу..."}
+// Фразы на один, два и три клика
+String tapes[][3] = {
+  {"Спасибо!", "Не жмись!", "Не дуди!"},
+  {"Пропусти", "Обгоняй", "Объезжай"},
+  {"Прошу прощения", "Понять и простить", "Сорян, спешу..."},
+  {"Я состарюсь в этой пробке", "Спасибо всем кто был со мной всё это время", "АВАРИЯ"}
 };
 
 /* Recode russian fonts from UTF-8 to Windows-1251 */
@@ -122,29 +122,47 @@ void loop() {
     if (Serial.available()) {
       tape = Serial_Read();
     }
-    for ( int i = 0 ; i < width * tape.length() + matrix.width() - spacer; i++ ) {
-      matrix.fillScreen(LOW);
-      int letter = i / width; // номер символа выводимого на матрицу
-      int x = (matrix.width() - 1) - i % width;
-      int y = (matrix.height() - 8) / 2; // Центр текста по вертикали
-      while ( x + width - spacer >= 0 && letter >= 0 ) {
-        if ( letter < tape.length() ) {
-          matrix.drawChar(x, y, tape[letter], HIGH, LOW, 1);
+    if (tape.length() > 8) {
+      for ( int i = 0 ; i < width * tape.length() + matrix.width() - spacer; i++ ) {
+        matrix.fillScreen(LOW);
+        int letter = i / width; // номер символа выводимого на матрицу
+        int x = (matrix.width() - 1) - i % width;
+        int y = (matrix.height() - 8) / 2; // Центр текста по вертикали
+        while ( x + width - spacer >= 0 && letter >= 0 ) {
+          if ( letter < tape.length() ) {
+            matrix.drawChar(x, y, tape[letter], HIGH, LOW, 1);
+          }
+          letter--;
+          x -= width;
         }
-        letter--;
-        x -= width;
-      }
-      matrix.write(); // Посылаем изображение на матрицу
+        matrix.write(); // Посылаем изображение на матрицу
 
-      // Проверяем нажата ли любая кнопка, если да то циклим строку
-      btn = statusBtn();
-      if (btn != 0 && bloop) {
-        tone(buzzPin, buzzHz, 100);
-        roll_loop = !roll_loop;
-        bloop = false;
+        bloop = loopString(bloop);
+
+        delay(wait);
       }
-      
-      delay(wait);
+    } else {
+      for ( int y = matrix.height() ; y >= 0 - matrix.height() ; y-- ) {
+        matrix.fillScreen(LOW);
+        int x = matrix.width() / 2 - (width * tape.length() - spacer) / 2;
+        int letter = 0;
+        while ( letter < tape.length() ) {
+          matrix.drawChar(x, y, tape[letter], HIGH, LOW, 1);
+          letter++;
+          x += width;
+        }
+
+        matrix.write(); // Посылаем изображение на матрицу
+
+        for ( int i = 0 ; i < tape.length() ; i++ ) {
+          bloop = loopString(bloop);
+          if (y == 0) {
+            delay(500);
+          }
+        }
+
+        delay(wait);
+      }
     }
     if (!roll_loop) {
       tone(buzzPin, buzzHz, 200);
@@ -163,6 +181,15 @@ void loop() {
     clicks = 0;
     currentBtn = 0;
   }
+}
+
+boolean loopString(boolean bloop) {
+  if (statusBtn() != 0 && bloop) {
+    tone(buzzPin, buzzHz, 100);
+    roll_loop = !roll_loop;
+    bloop = false;
+  }
+  return bloop;
 }
 
 int statusBtn() {
@@ -203,5 +230,3 @@ void sendCommand(int btn, int clks) {
   tape = utf8rus(tapes[btn - 1][clks]);
   roll = true;
 }
-
-
