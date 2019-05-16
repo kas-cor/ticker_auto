@@ -3,10 +3,6 @@
 #include <Max72xxPanel.h>
 
 /*
-   Настройки матричного модуля
-*/
-
-/*
   Подключение матричного модуля к SPI
   VCC - 5v
   GND - GND
@@ -14,29 +10,30 @@
   CS - 10pin
   CLC - 13pin
 */
-int pinCS = 10;
-int numberOfHorizontalDisplays = 1; // Модулей по горизонтали
-int numberOfVerticalDisplays = 8; // Модулей по вертикали
-Max72xxPanel matrix = Max72xxPanel(pinCS, numberOfHorizontalDisplays, numberOfVerticalDisplays);
-String tape = "";
-int wait = 25; // Задержка в милисекундах (скорость строки)
-int spacer = 1; // Промежуток между символами (кол-во точек)
-int width = 5 + spacer; // Ширина шрифта
-
-/*
-   Настройки радиомодуля
-*/
+#define PIN_CS 10 // Пин CS матрицы
+#define NUMBER_OF_HORIZONTAL_DISPLAYS 1 // Модулей по горизонтали
+#define NUMBER_OF_VERTICAL_DISPLAYS 8 // Модулей по вертикали
+#define WAIT 25 // Задержка в милисекундах (скорость строки)
+#define MATRIX_MATRIX_MATRIX_ROTATE 3 // Поворот матрицы 1 - 90,  2 - 180, 3 - 270
+#define MATRIX_BRIGHTNESS 15 // Яркость матричного модуля от 0 до 15
+Max72xxPanel matrix = Max72xxPanel(PIN_CS, NUMBER_OF_HORIZONTAL_DISPLAYS, NUMBER_OF_VERTICAL_DISPLAYS);
 
 // Пины к которым подключены выводы радиомодуля
-const int buttonPin1 = 5; // Кнопка "A"
-const int buttonPin2 = 4; // Кнопка "B"
-const int buttonPin3 = 3; // Кнопка "C"
-const int buttonPin4 = 2; // Кнопка "D"
+#define BUTTON_PIN_1 5 // Кнопка "A"
+#define BUTTON_PIN_2 4 // Кнопка "B"
+#define BUTTON_PIN_3 3 // Кнопка "C"
+#define BUTTON_PIN_4 2 // Кнопка "D"
 
 // Пищалка
-const int buzzPin = 6; // Пин к которому подключена пищалка
-const int buzzHz = 1000; // Частота пищалки в Hz
+#define BUZZ_PIN 6 // Пин к которому подключена пищалка
+#define BUZZ_HZ 1000 // Частота пищалки в Hz
 
+// Текст при запуске
+#define START_TEXT "Поехали!"
+
+String tape = "";
+const int spacer = 1; // Промежуток между символами (кол-во точек)
+const int width = 5 + spacer; // Ширина шрифта
 int clicks = 0;
 int currentBtn = 0;
 unsigned long timeBtn = 0;
@@ -104,15 +101,15 @@ String Serial_Read() {
 }
 
 void setup() {
-  pinMode(buttonPin1, INPUT);
-  pinMode(buttonPin2, INPUT);
-  pinMode(buttonPin3, INPUT);
-  pinMode(buttonPin4, INPUT);
-  pinMode(buzzPin, OUTPUT);
+  pinMode(BUTTON_PIN_1, INPUT);
+  pinMode(BUTTON_PIN_2, INPUT);
+  pinMode(BUTTON_PIN_3, INPUT);
+  pinMode(BUTTON_PIN_4, INPUT);
+  pinMode(BUZZ_PIN, OUTPUT);
   Serial.begin(9600);
-  matrix.setIntensity(15); // Яркость матричного модуля от 0 до 15
-  matrix.setRotation(matrix.getRotation() + 1); // Поворот 1 - 90,  2 - 180, 3 - 270
-  tape = utf8rus("Поехали!"); // Текст при запуске
+  matrix.setIntensity(MATRIX_BRIGHTNESS);
+  matrix.setRotation(matrix.getRotation() + MATRIX_ROTATE);
+  tape = utf8rus(START_TEXT);
 }
 
 void loop() {
@@ -139,7 +136,7 @@ void loop() {
 
         bloop = loopString(bloop);
 
-        delay(wait);
+        delay(WAIT);
       }
     } else {
       for ( int y = matrix.height() ; y >= 0 - matrix.height() ; y-- ) {
@@ -161,13 +158,13 @@ void loop() {
           }
         }
 
-        delay(wait);
+        delay(WAIT);
       }
     }
     if (!roll_loop) {
-      tone(buzzPin, buzzHz, 200);
+      tone(BUZZ_PIN, BUZZ_HZ, 200);
     } else {
-      tone(buzzPin, buzzHz, 5);
+      tone(BUZZ_PIN, BUZZ_HZ, 5);
     }
     roll = false;
   }
@@ -185,7 +182,7 @@ void loop() {
 
 boolean loopString(boolean bloop) {
   if (statusBtn() != 0 && bloop) {
-    tone(buzzPin, buzzHz, 100);
+    tone(BUZZ_PIN, BUZZ_HZ, 100);
     roll_loop = !roll_loop;
     bloop = false;
   }
@@ -193,16 +190,16 @@ boolean loopString(boolean bloop) {
 }
 
 int statusBtn() {
-  if (digitalRead(buttonPin1) == HIGH) {
+  if (digitalRead(BUTTON_PIN_1) == HIGH) {
     return 1;
   }
-  if (digitalRead(buttonPin2) == HIGH) {
+  if (digitalRead(BUTTON_PIN_2) == HIGH) {
     return 2;
   }
-  if (digitalRead(buttonPin3) == HIGH) {
+  if (digitalRead(BUTTON_PIN_3) == HIGH) {
     return 3;
   }
-  if (digitalRead(buttonPin4) == HIGH) {
+  if (digitalRead(BUTTON_PIN_4) == HIGH) {
     return 4;
   }
   return 0;
@@ -215,7 +212,7 @@ void pressBtn(int btn) {
     } else {
       clicks = 0;
     }
-    tone(buzzPin, buzzHz, 100);
+    tone(BUZZ_PIN, BUZZ_HZ, 100);
     currentBtn = btn;
   }
   timeBtn = millis();
@@ -224,7 +221,7 @@ void pressBtn(int btn) {
 void sendCommand(int btn, int clks) {
   delay(50);
   for (int i = 0; i < clks + 1; i++) {
-    tone(buzzPin, buzzHz, 50);
+    tone(BUZZ_PIN, BUZZ_HZ, 50);
     delay(250);
   }
   tape = utf8rus(tapes[btn - 1][clks]);
